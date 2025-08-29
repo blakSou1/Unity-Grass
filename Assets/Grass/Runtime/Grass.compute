@@ -1,0 +1,260 @@
+#pragma kernel Main
+#pragma multi_compile_local __ DISTANCE_CULL_ENABLED
+
+struct GrassBlade {
+
+    float3 position;
+    float2 rotData;
+    float2 size;
+    float2 shape;
+    float3 color;
+    float windForce;
+};
+
+struct ClumpParametersStruct {
+    float2 distribution;
+    float4 sizeParams;
+    float4 shapeParams;
+};
+
+struct ChunkBuffer{
+    uint chunkId;
+    uint grassAmount;
+    uint isVisible;
+    float3 minBounds;
+    float3 maxBounds;
+};
+
+StructuredBuffer<ClumpParametersStruct> _ClumpParameters;
+AppendStructuredBuffer<GrassBlade> _GrassBlades;
+StructuredBuffer<ChunkBuffer> _ChunkBuffer;
+
+uint _ChunkCount;
+float4 _Time;
+float _JitterStrength;
+
+float _HeightMapScale;
+float _HeightMapMultiplier;
+
+float _FrustumCullNearOffset;
+float _FrustumCullEdgeOffset;
+
+float _DistanceCullStartDist;
+float _DistanceCullEndDist;
+
+float _DistanceCullMinimumGrassAmount;
+float3 _WSpaceCameraPos;
+float _WindTexContrast;
+
+float _GlobalWindFacingAngle;
+float _GlobalWindFacingContribution;
+
+float _CentreColorSmoothStepLower;
+float _CentreColorSmoothStepUpper;
+float4x4 _VP_MATRIX;
+
+Texture2D WindTex; 
+SamplerState samplerWindTex;
+
+float _WindControl;
+float _BigWindSpeed;
+float _BigWindRotateAmount;
+float _BigWindScale;
+float _ClumpColorUniformity;
+
+Texture2D HeightMap; 
+SamplerState samplerHeightMap;
+
+Texture2D ClumpTex; 
+SamplerState samplerClumpTex;
+float _ClumpScale;
+
+Texture2D ClumpGradientMap; 
+SamplerState samplerClumpGradientMap;
+
+float2 hashwithoutsine22(float2 p)
+{
+	float3 p3 = frac(float3(p.xyx) * float3(.1031, .1030, .0973));
+    p3 += dot(p3, p3.yzx+33.33);
+    return frac((p3.xx+p3.yz)*p3.zy);
+}
+
+float rand(float3 co)
+{
+    return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
+float remap01_neg11(float t){
+    return (t*2)-1;
+}
+
+uint DistanceCull(float3 worldPos, float hash, float3 posToCam){
+    //Distance culling
+    float d = distance(worldPos, _WSpaceCameraPos);
+
+    float distanceSmoothStep = 1-smoothstep(_DistanceCullStartDist, _DistanceCullEndDist, d);
+
+    distanceSmoothStep = (distanceSmoothStep * (1-_DistanceCullMinimumGrassAmount)) + _DistanceCullMinimumGrassAmount;
+
+    return hash > 1-distanceSmoothStep ? 1 : 0;
+}
+
+uint FrustumCull(float4 clipPos){
+    return(clipPos.z > clipPos.w 
+    || clipPos.z < - clipPos.w 
+    || clipPos.x < - clipPos.w + _FrustumCullEdgeOffset
+    || clipPos.x > clipPos.w - _FrustumCullEdgeOffset
+    || clipPos.y < - clipPos.w +_FrustumCullNearOffset
+    || clipPos.y > clipPos.w)
+        ? 0: 1;
+}
+
+float3 getTransformedVertex(float3 vertex){
+    float2 worldUV = vertex.xz * (1 / _HeightMapScale.xx);
+    float height = HeightMap.SampleLevel(samplerHeightMap, worldUV, 0).x;
+    vertex.y += height * _HeightMapMultiplier;
+    
+    return vertex;
+}
+
+float2 rot90CCW(float2 vec){
+    return float2(-vec.y,vec.x);
+}
+
+void GenerationGrass(float3 raisedVertex, float2 clumpCentre, uint3 id, float3 position, float3 posToCam, ClumpParametersStruct bladeParameters){
+    //Copy parameters from parameter struct
+    float baseHeight = bladeParameters.sizeParams.x;
+    float heightRandom = bladeParameters.sizeParams.y;
+    float baseWidth = bladeParameters.sizeParams.z;
+    float widthRandom = bladeParameters.sizeParams.w;
+    
+    float baseTilt = bladeParameters.shapeParams.x;
+    float tiltRandom = bladeParameters.shapeParams.y;
+    float baseBend = bladeParameters.shapeParams.z;
+    float bendRandom = bladeParameters.shapeParams.w;
+    
+    //Start building grassblade struct
+    GrassBlade blade;
+    blade.position = raisedVertex;
+    
+    //Compute the facing by lerping between random facing and shared clump facing based on the pointInSameDirection parameter
+    float2 clumpHash = hashwithoutsine22(clumpCentre);
+    float2 sharedClumpFacing = normalize( tan((clumpHash+float2(0.13, 1.111))  *2 - 1));
+
+    float2 bladeFacing = normalize( hashwithoutsine22(id.yz) * 2 - 1); 
+    float2 combinedFacing = normalize(lerp(bladeFacing, sharedClumpFacing, bladeParameters.distribution.y));
+
+    float2 globalWindFacingVec= float2(cos(_GlobalWindFacingAngle), sin(_GlobalWindFacingAngle));
+    float2 globalFacing = normalize(lerp(combinedFacing, globalWindFacingVec, _GlobalWindFacingContribution));
+    bladeFacing = globalFacing ;
+
+    float angle = atan2(bladeFacing.y,bladeFacing.x);
+
+        //---Calculate wind
+        float2 worldUV = position.xz;
+        float2 bigWindUV = worldUV * (_BigWindScale);
+
+        bigWindUV += _Time.y * globalWindFacingVec *_BigWindSpeed;
+
+        //Alternate method for big wind using same method as small wind
+        float bigWind = WindTex.SampleLevel(samplerWindTex, bigWindUV, 0).x;
+
+        float bigTheta = ((bigWind*2)-1)* 3.14159;
+
+        float2 bigWindDir = (float2(cos(bigTheta), sin(bigTheta)));
+
+        float2 grassSideVec = normalize(float2(-bladeFacing.y, bladeFacing.x));
+
+        float rotateBladeFromBigWindAmount = dot(grassSideVec, bigWindDir); 
+
+        _BigWindRotateAmount = lerp(0, _BigWindRotateAmount, _WindControl);
+
+        float bigWindRotateAngle = rotateBladeFromBigWindAmount * (3.14159/2) * _BigWindRotateAmount;
+
+        angle += bigWindRotateAngle;
+
+    blade.rotData.x = angle;
+    blade.rotData.y = rand(id.yzy);
+
+    blade.size.x = baseHeight + remap01_neg11(  rand(id.yyz) ) * heightRandom;
+    blade.size.y = baseWidth + remap01_neg11(  rand(id.zyy) ) * widthRandom;
+    
+    //0-1 value, controlling the vertical component of the p3 point in the bezier curve, horizontal can be derived from pythag.
+    blade.shape.x = baseTilt + remap01_neg11(  rand(id.yzy * float3(1.12, 3.3, 17.6)) ) * tiltRandom;
+    blade.shape.y = baseBend + remap01_neg11(  rand(id.yzz * float3(12.32, 0.23, 3.39)) ) * bendRandom;
+
+    //Get y height from heightmap
+    // Also calc surface normal from height map. Probably better to read from a texture
+    float3 clumpColor =  ClumpGradientMap.SampleLevel(samplerClumpGradientMap, clumpHash.x, 0).xyz;
+
+    float3 bladeColor =  ClumpGradientMap.SampleLevel(samplerClumpGradientMap, blade.rotData.y, 0).xyz;
+
+    float3 finalColor = lerp(clumpColor, bladeColor , _ClumpColorUniformity);
+
+    blade.color = finalColor.xyz;
+    
+    float windForce = saturate(  ((bigWind - 0.5) * max(_WindTexContrast, 0)) + 0.5f   );
+    blade.windForce = (windForce);
+
+    _GrassBlades.Append(blade);
+}
+
+[numthreads(8,8,8)]
+void Main (uint3 id : SV_DispatchThreadID)
+{    
+    if (id.x >= _ChunkCount) return;
+    
+    ChunkBuffer chunk = _ChunkBuffer[id.x];
+        
+    if (id.y >= chunk.grassAmount || id.z >= chunk.grassAmount) return;
+    
+    // Вычисляем позицию травинки внутри чанка
+    float chunkWorldSize = chunk.maxBounds.x - chunk.minBounds.x;
+    float stepSize = chunkWorldSize / (chunk.grassAmount - 1);
+    float3 startPos = float3(chunk.minBounds.x, 0, chunk.minBounds.z);
+    float3 position = startPos + float3(id.y * stepSize, 0, id.z * stepSize);
+
+    float2 hash = hashwithoutsine22(id.yz);
+
+    float2 jitter = ((hash * 2) - 1 ) * _JitterStrength;
+
+    position.xz += jitter;
+
+    float2 clumpUV = position.xz * float2(_ClumpScale.xx);
+
+    //Retrieve clump data for this blade from voronoi texture
+    //This includes the clump parameter id, and the centre of this clump in texture space
+    float3 clumpData = ClumpTex.SampleLevel(samplerClumpTex, clumpUV, 0).xyz;
+
+    //This is the index of the clump parameter set for this blade
+    float clumpParamsIndex = clumpData.x;
+
+    //Retrieve the correct set of blade parameters
+    ClumpParametersStruct bladeParameters = _ClumpParameters[int((clumpParamsIndex))]; 
+
+    //Compute the clump centre in world space by finding its offsetted position in texture space and -dividing- that by the voronoi tiling 
+    float2 clumpCentre = (clumpData.yz + floor(clumpUV)) / float2(_ClumpScale.xx);
+
+    //Pull position to centre of clump based on pullToCentre
+    position.xz = lerp(position.xz, clumpCentre, bladeParameters.distribution.x);
+
+    float3 raisedVertex = getTransformedVertex(position);
+    float3 posToCam =  normalize(_WSpaceCameraPos - raisedVertex);
+
+    uint distanceCull = 1;
+    uint isInFrustum = 1;
+
+    //Distance culling
+    #if DISTANCE_CULL_ENABLED
+        distanceCull = DistanceCull(raisedVertex, hash.x, posToCam);
+    #endif
+
+    //Get clipPos for easier frustum culling in clip space
+    float4 clipPos = mul(_VP_MATRIX, float4(raisedVertex, 1));
+
+    //Frustum culling
+    if(chunk.isVisible < 2) isInFrustum = FrustumCull(clipPos);
+
+    if (isInFrustum == 1 && distanceCull == 1)
+        GenerationGrass(raisedVertex, clumpCentre, id, position, posToCam, bladeParameters);
+}

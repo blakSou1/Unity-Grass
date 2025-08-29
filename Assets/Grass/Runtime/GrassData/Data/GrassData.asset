@@ -1,0 +1,115 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 838216565a47c14418740d707d7d9872, type: 3}
+  m_Name: GrassData
+  m_EditorClassIdentifier: 
+  computeShader: {fileID: 7200000, guid: e5d8eae77f4353e4ea73f713d6da57bc, type: 3}
+  grassMesh: {fileID: 11400000, guid: a68c992e30c790b4c8b0714d4b3bdcc8, type: 2}
+  resolution: 600
+  jitterStrength: 5
+  WindTex: {fileID: 2800000, guid: 20d78fde43f8f624ca3c54d38d11014a, type: 3}
+  _GlobalWindFacingContribution: 0
+  _GlobalWindFacingAngle: 0
+  _WindControl: 0.2
+  _BigWindSpeed: 0.01
+  _BigWindScale: 0.005
+  _BigWindRotateAmount: 0.6
+  _WindTexContrast: 1
+  _VertexPlacementPower: 0.6
+  _DistanceCullStartDist: 26.93
+  _DistanceCullEndDist: 150
+  _DistanceCullMinimumGrassAmount: 0.1
+  DISTANCE_CULL_ENABLED: 1
+  _FrustumCullNearOffset: -5
+  _FrustumCullEdgeOffset: -2
+  clumpTexHeight: 512
+  clumpTexWidth: 512
+  clumpingVoronoiMat: {fileID: 2100000, guid: 427f3176a375e484f86f3b548da71ba3, type: 2}
+  ClumpScale: 0.1
+  clumpParameters:
+  - pullToCentre: 0.1
+    pointInSameDirection: 0
+    baseHeight: 0.8
+    heightRandom: 0.1
+    baseWidth: 0.01
+    widthRandom: 0.02
+    baseTilt: 0.6
+    tiltRandom: 0.2
+    baseBend: 0.1
+    bendRandom: 0.05
+  - pullToCentre: 0.1
+    pointInSameDirection: 0
+    baseHeight: 0.8
+    heightRandom: 0.1
+    baseWidth: 0.02
+    widthRandom: 0.01
+    baseTilt: 0.8
+    tiltRandom: 0.3
+    baseBend: 0.1
+    bendRandom: 0.05
+  - pullToCentre: 0.1
+    pointInSameDirection: 0
+    baseHeight: 0.8
+    heightRandom: 0.1
+    baseWidth: 0.02
+    widthRandom: 0.01
+    baseTilt: 0.4
+    tiltRandom: 0.1
+    baseBend: 0.1
+    bendRandom: 0.05
+  - pullToCentre: 0.3
+    pointInSameDirection: 0.5
+    baseHeight: 1.8
+    heightRandom: 0.1
+    baseWidth: 0.02
+    widthRandom: 0.01
+    baseTilt: 0.7
+    tiltRandom: 0.2
+    baseBend: 0.3
+    bendRandom: 0.1
+  enableClumpColoring: 1
+  _CentreColorSmoothStepLower: 0
+  _CentreColorSmoothStepUpper: 0.41
+  _ClumpColorUniformity: 0.5
+  gradientMapDimensions: {x: 128, y: 32}
+  testing: 0
+  gradientClump:
+    serializedVersion: 2
+    key0: {r: 0.0024990742, g: 0.4415095, b: 0.08412481, a: 1}
+    key1: {r: 1, g: 0, b: 0.7459364, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: 0
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  texture: {fileID: 2800000, guid: ce0b9821b9c0b9e4a95e6177457c6070, type: 3}
