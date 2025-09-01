@@ -5,6 +5,9 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "GrassData", menuName = "Grass/GrassData")]
 public class GrassData : ScriptableObject
 {
+    public TerrainLayer[] IncludeLayers;
+
+
     [Header("Linked objects")]
     public ComputeShader computeShader;
     public GrassMesh grassMesh;
@@ -52,10 +55,10 @@ public class GrassData : ScriptableObject
     public float _ClumpColorUniformity = .5f;
     public Vector2Int gradientMapDimensions = new(128, 32);
 
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
     public bool testing = false;
     public Gradient gradientClump;
-    #endif
+#endif
 
     public Texture2D texture;
 }

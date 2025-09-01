@@ -13,7 +13,18 @@ public class Grass : MonoBehaviour
         chunkController.InitializeChunkBuffer(plane, grassData);
 
         grassComputeManager = new();
+
         grassComputeManager.Init(grassData, plane, chunkController);
+
+        Terrain terrain = plane.GetComponent<Terrain>();
+        grassData.computeShader.SetTexture(0, "_LayerMaskTexture",
+        TerrainLayerMaskGenerator.GenerateLayerMaskTexture(terrain, grassData.IncludeLayers));
+
+        float terrainSize = terrain.terrainData.size.x;
+        float scale = 1f / terrainSize;
+        grassData.computeShader.SetVector("_LayerMaskTexture_ST",
+        new Vector4(scale, scale, 0f, 0f));
+    
     }
 
     private void Start()

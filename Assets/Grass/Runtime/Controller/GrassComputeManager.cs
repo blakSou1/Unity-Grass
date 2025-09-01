@@ -70,6 +70,8 @@ public class GrassComputeManager : IDisposable
 
         InitializeBasicData(grassData, chunkController);
 
+        grassData.computeShader.SetFloat("_GrassPlatformOffsetY", plane.transform.position.y);
+
         CreateBuffers(plane);
         SetComputeShaderParameters();
         SetClumpParameters();
@@ -223,14 +225,15 @@ public class GrassComputeManager : IDisposable
 
     private void Height(GameObject plane)
     {
-        Material objectRenderer;
-        objectRenderer = plane.GetComponent<Renderer>().material;
+        Terrain terrain = plane.GetComponent<Terrain>();
+        heightMap = terrain.terrainData.heightmapTexture;
+        _HeightMapScale = terrain.terrainData.size.x;
 
-        heightMap = objectRenderer.GetTexture("_Heightmap");
-        Vector2 heightmapTiling = objectRenderer.GetTextureScale("_Heightmap");
+        grassData.computeShader.SetFloat("_TwiceTerrainHeight", terrain.terrainData.size.y * 2f);
+        grassData.computeShader.SetFloat("_TerrainSize", terrain.terrainData.size.x);
+        grassData.computeShader.SetVector("_terrainCenter", terrain.transform.position);
 
-        _HeightMapScale = heightmapTiling.x;
-        _HeightMapMultiplier = objectRenderer.GetFloat("_HeightMul");
+        _HeightMapMultiplier = terrain.terrainData.size.y;
     }
 
     private void Voronoi()

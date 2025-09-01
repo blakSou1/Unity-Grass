@@ -23,9 +23,20 @@ public class ChunkController : IDisposable
 
         chunkBuffers = new ChunkBuffer[chunkCount];
 
-        Renderer planeRenderer = plane.GetComponent<Renderer>();
-        Bounds planeBounds = planeRenderer.bounds;
-        Vector3 planeSize = planeBounds.size;
+        Terrain terrain = plane.GetComponent<Terrain>();
+
+        TerrainData terrainData = terrain.terrainData;
+        Vector3 terrainSize = terrainData.size;
+        Vector3 terrainPosition = terrain.transform.position;
+        
+        Vector3 center = terrainPosition + new Vector3(
+            terrainSize.x / 2f,
+            terrainSize.y / 2f,
+            terrainSize.z / 2f
+        );
+        
+        Vector3 planeSize = terrainSize;
+        Bounds planeBounds = new(center, planeSize);
 
         int chunksPerSide = Mathf.CeilToInt(Mathf.Sqrt(chunkCount));
 
@@ -69,14 +80,10 @@ public class ChunkController : IDisposable
 
     private float GetHeightFromHeightmap(GameObject plane, Vector2 worldXZ)
     {
-        Material objectRenderer;
-        objectRenderer = plane.GetComponent<Renderer>().material;
-
-        Texture heightMap = objectRenderer.GetTexture("_Heightmap");
-        Vector2 heightmapTiling = objectRenderer.GetTextureScale("_Heightmap");
-
-        float _HeightMapScale = heightmapTiling.x;
-        float _HeightMapMultiplier = objectRenderer.GetFloat("_HeightMul");
+        Terrain terrain = plane.GetComponent<Terrain>();
+        Texture heightMap = terrain.terrainData.heightmapTexture;
+        float _HeightMapMultiplier = terrain.terrainData.size.y;
+        float _HeightMapScale = 1;
 
         if (heightMap == null) return 0f;
 
@@ -143,7 +150,6 @@ public class ChunkController : IDisposable
             Marshal.SizeOf(typeof(ChunkBuffer))
         );
 
-        // Заполняем буфер данными видимых чанков
         chunkBuffer.SetData(visibleChunks.ToArray());
 
         grassData.computeShader.SetBuffer(0, "_ChunkBuffer", chunkBuffer);

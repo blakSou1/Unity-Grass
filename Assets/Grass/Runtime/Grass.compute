@@ -29,9 +29,15 @@ StructuredBuffer<ClumpParametersStruct> _ClumpParameters;
 AppendStructuredBuffer<GrassBlade> _GrassBlades;
 StructuredBuffer<ChunkBuffer> _ChunkBuffer;
 
+Texture2D _LayerMaskTexture;
+SamplerState sampler_LayerMaskTexture;
+float4 _LayerMaskTexture_ST;
+
 uint _ChunkCount;
 float4 _Time;
 float _JitterStrength;
+
+float _GrassPlatformOffsetY;
 
 float _HeightMapScale;
 float _HeightMapMultiplier;
@@ -109,10 +115,29 @@ uint FrustumCull(float4 clipPos){
         ? 0: 1;
 }
 
-float3 getTransformedVertex(float3 vertex){
-    float2 worldUV = vertex.xz * (1 / _HeightMapScale.xx);
-    float height = HeightMap.SampleLevel(samplerHeightMap, worldUV, 0).x;
-    vertex.y += height * _HeightMapMultiplier;
+uint TerrainMask(float3 worldPos)
+{
+    float2 uv = worldPos.xz * _LayerMaskTexture_ST.xy + _LayerMaskTexture_ST.zw;
+    
+    float maskValue = _LayerMaskTexture.SampleLevel(sampler_LayerMaskTexture, uv, 0).r;
+    
+    return maskValue > .1 ? 1 : 0;
+}
+
+float3 _terrainCenter;        
+float _TerrainSize;           
+float _TwiceTerrainHeight;
+float3 getTransformedVertex(float3 vertex)
+{
+    float2 terrainUV = (vertex.xz - _terrainCenter.xz) / _TerrainSize;
+    
+    float heightFromMap = HeightMap.SampleLevel(
+        samplerHeightMap,      
+        terrainUV,             
+        1                      
+    ).r;                       
+    
+    vertex.y = heightFromMap * _TwiceTerrainHeight + _GrassPlatformOffsetY;
     
     return vertex;
 }
@@ -241,12 +266,14 @@ void Main (uint3 id : SV_DispatchThreadID)
     float3 raisedVertex = getTransformedVertex(position);
     float3 posToCam =  normalize(_WSpaceCameraPos - raisedVertex);
 
-    uint distanceCull = 1;
     uint isInFrustum = 1;
+    uint isInMask = 1;
 
     //Distance culling
     #if DISTANCE_CULL_ENABLED
+        uint distanceCull = 1;
         distanceCull = DistanceCull(raisedVertex, hash.x, posToCam);
+        if(distanceCull != 1) return;
     #endif
 
     //Get clipPos for easier frustum culling in clip space
@@ -255,6 +282,8 @@ void Main (uint3 id : SV_DispatchThreadID)
     //Frustum culling
     if(chunk.isVisible < 2) isInFrustum = FrustumCull(clipPos);
 
-    if (isInFrustum == 1 && distanceCull == 1)
+    isInMask = TerrainMask(raisedVertex);
+
+    if (isInMask == 1 && isInFrustum == 1)
         GenerationGrass(raisedVertex, clumpCentre, id, position, posToCam, bladeParameters);
 }
