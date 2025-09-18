@@ -5,7 +5,7 @@ Essentially an implementation of the approach used in Ghost of Tsushima, detaile
 
 The grass is quite performant (although there are crucial optimisations that should be added, like LODing). The look and movement of the grass is highly customisable and can be changed using various parameters.
 
-![alt text](https://github.com/blakSou1/Unity-Grass/blob/main/ReadmeDataMedia/photo_2025-09-18_22-27-54.jpg?raw=true)
+https://github.com/user-attachments/assets/b5731855-1400-4dbc-8668-bc157d50b608
 
 # Key Features:
 - **Shape of blades** determined by cubic Bezier curves
@@ -20,6 +20,8 @@ The grass is quite performant (although there are crucial optimisations that sho
 - **Chunking**, chunk-based rejection on the CPU
 - **RenderPipeline**, URP support
 - **Mask-Based Vegetation Spawning**, uses the Terrain mask to determine where to cut the grass
+
+![alt text](https://github.com/blakSou1/Unity-Grass/blob/main/ReadmeDataMedia/photo_2025-09-18_22-27-54.jpg?raw=true)
 
 # To-do
 - LODing
