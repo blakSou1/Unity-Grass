@@ -18,6 +18,7 @@ public class GrassData : ScriptableObject
     public float jitterStrength = 5;
 
     [Header("Wind")]
+    public bool enableWindDisabled = true;
     public Texture WindTex;
     public float _GlobalWindFacingContribution = 0;
     public float _GlobalWindFacingAngle = 0;
@@ -40,6 +41,7 @@ public class GrassData : ScriptableObject
     public float _FrustumCullEdgeOffset = -2;
 
     [Header("Clumping")]
+    public bool enableClumpDisabled = true;
     public int clumpTexHeight = 512;
     public int clumpTexWidth = 512;
     public Material clumpingVoronoiMat;

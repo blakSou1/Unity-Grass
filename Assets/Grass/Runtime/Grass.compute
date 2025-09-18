@@ -1,5 +1,7 @@
 #pragma kernel Main
 #pragma multi_compile_local __ DISTANCE_CULL_ENABLED
+#pragma multi_compile_local __ CLUMP_DISABLED 
+#pragma multi_compile_local __ WIND_DISABLED 
 
 struct GrassBlade {
 
@@ -36,6 +38,10 @@ float4 _LayerMaskTexture_ST;
 uint _ChunkCount;
 float4 _Time;
 float _JitterStrength;
+
+float3 _terrainCenter;        
+float _TerrainSize;           
+float _TwiceTerrainHeight;
 
 float _GrassPlatformOffsetY;
 
@@ -121,12 +127,9 @@ uint TerrainMask(float3 worldPos)
     
     float maskValue = _LayerMaskTexture.SampleLevel(sampler_LayerMaskTexture, uv, 0).r;
     
-    return maskValue > .1 ? 1 : 0;
+    return maskValue > .4 ? 1 : 0;
 }
 
-float3 _terrainCenter;        
-float _TerrainSize;           
-float _TwiceTerrainHeight;
 float3 getTransformedVertex(float3 vertex)
 {
     float2 terrainUV = (vertex.xz - _terrainCenter.xz) / _TerrainSize;
@@ -174,7 +177,7 @@ void GenerationGrass(float3 raisedVertex, float2 clumpCentre, uint3 id, float3 p
     bladeFacing = globalFacing ;
 
     float angle = atan2(bladeFacing.y,bladeFacing.x);
-
+    #if WIND_DISABLED
         //---Calculate wind
         float2 worldUV = position.xz;
         float2 bigWindUV = worldUV * (_BigWindScale);
@@ -197,6 +200,7 @@ void GenerationGrass(float3 raisedVertex, float2 clumpCentre, uint3 id, float3 p
         float bigWindRotateAngle = rotateBladeFromBigWindAmount * (3.14159/2) * _BigWindRotateAmount;
 
         angle += bigWindRotateAngle;
+    #endif
 
     blade.rotData.x = angle;
     blade.rotData.y = rand(id.yzy);
@@ -218,8 +222,12 @@ void GenerationGrass(float3 raisedVertex, float2 clumpCentre, uint3 id, float3 p
 
     blade.color = finalColor.xyz;
     
+    #if WIND_DISABLED
     float windForce = saturate(  ((bigWind - 0.5) * max(_WindTexContrast, 0)) + 0.5f   );
     blade.windForce = (windForce);
+    #else
+        blade.windForce = 0;
+    #endif
 
     _GrassBlades.Append(blade);
 }
@@ -233,7 +241,6 @@ void Main (uint3 id : SV_DispatchThreadID)
         
     if (id.y >= chunk.grassAmount || id.z >= chunk.grassAmount) return;
     
-    // Вычисляем позицию травинки внутри чанка
     float chunkWorldSize = chunk.maxBounds.x - chunk.minBounds.x;
     float stepSize = chunkWorldSize / (chunk.grassAmount - 1);
     float3 startPos = float3(chunk.minBounds.x, 0, chunk.minBounds.z);
@@ -241,9 +248,11 @@ void Main (uint3 id : SV_DispatchThreadID)
 
     float2 hash = hashwithoutsine22(id.yz);
 
-    float2 jitter = ((hash * 2) - 1 ) * _JitterStrength;
+    #if CLUMP_DISABLED
+        float2 jitter = ((hash * 2) - 1 ) * _JitterStrength;
 
-    position.xz += jitter;
+        position.xz += jitter;
+    #endif
 
     float2 clumpUV = position.xz * float2(_ClumpScale.xx);
 
@@ -251,17 +260,19 @@ void Main (uint3 id : SV_DispatchThreadID)
     //This includes the clump parameter id, and the centre of this clump in texture space
     float3 clumpData = ClumpTex.SampleLevel(samplerClumpTex, clumpUV, 0).xyz;
 
-    //This is the index of the clump parameter set for this blade
-    float clumpParamsIndex = clumpData.x;
-
-    //Retrieve the correct set of blade parameters
-    ClumpParametersStruct bladeParameters = _ClumpParameters[int((clumpParamsIndex))]; 
-
     //Compute the clump centre in world space by finding its offsetted position in texture space and -dividing- that by the voronoi tiling 
     float2 clumpCentre = (clumpData.yz + floor(clumpUV)) / float2(_ClumpScale.xx);
 
-    //Pull position to centre of clump based on pullToCentre
-    position.xz = lerp(position.xz, clumpCentre, bladeParameters.distribution.x);
+    //This is the index of the clump parameter set for this blade
+    float clumpParamsIndex = clumpData.x;
+    
+    //Retrieve the correct set of blade parameters
+    ClumpParametersStruct bladeParameters = _ClumpParameters[int((clumpParamsIndex))]; 
+    
+    #if CLUMP_DISABLED
+        //Pull position to centre of clump based on pullToCentre
+        position.xz = lerp(position.xz, clumpCentre, bladeParameters.distribution.x);
+    #endif
 
     float3 raisedVertex = getTransformedVertex(position);
     float3 posToCam =  normalize(_WSpaceCameraPos - raisedVertex);

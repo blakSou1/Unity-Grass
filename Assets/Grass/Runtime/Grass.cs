@@ -2,8 +2,8 @@ using UnityEngine;
 
 public class Grass : MonoBehaviour
 {
-    public GrassData grassData;
-    public GameObject plane;
+    [SerializeField] private GrassData grassData;
+    [SerializeField] private GameObject plane;
 
     private GrassComputeManager grassComputeManager;
     [SerializeField] private ChunkController chunkController;
@@ -20,11 +20,10 @@ public class Grass : MonoBehaviour
         grassData.computeShader.SetTexture(0, "_LayerMaskTexture",
         TerrainLayerMaskGenerator.GenerateLayerMaskTexture(terrain, grassData.IncludeLayers));
 
-        float terrainSize = terrain.terrainData.size.x;
-        float scale = 1f / terrainSize;
+        float scaleX = 1f / terrain.terrainData.size.x;
+
         grassData.computeShader.SetVector("_LayerMaskTexture_ST",
-        new Vector4(scale, scale, 0f, 0f));
-    
+        new Vector4(scaleX, scaleX, 0f, 0f));
     }
 
     private void Start()

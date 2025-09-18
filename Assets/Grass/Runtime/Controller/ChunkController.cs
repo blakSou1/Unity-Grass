@@ -21,39 +21,31 @@ public class ChunkController : IDisposable
     {
         this.grassData = grassData;
 
-        chunkBuffers = new ChunkBuffer[chunkCount];
-
         Terrain terrain = plane.GetComponent<Terrain>();
-
         TerrainData terrainData = terrain.terrainData;
-        Vector3 terrainSize = terrainData.size;
+
         Vector3 terrainPosition = terrain.transform.position;
-        
-        Vector3 center = terrainPosition + new Vector3(
-            terrainSize.x / 2f,
-            terrainSize.y / 2f,
-            terrainSize.z / 2f
-        );
-        
-        Vector3 planeSize = terrainSize;
-        Bounds planeBounds = new(center, planeSize);
+        Vector3 terrainSize = terrainData.size;
+
+        float terrainMinX = terrainPosition.x;
+        float terrainMaxX = terrainPosition.x + terrainSize.x;
+        float terrainMinZ = terrainPosition.z;
+        float terrainMaxZ = terrainPosition.z + terrainSize.z;
+
+        chunkBuffers = new ChunkBuffer[chunkCount];
 
         int chunksPerSide = Mathf.CeilToInt(Mathf.Sqrt(chunkCount));
 
-        float chunkWidth = planeSize.x / chunksPerSide;
-        float chunkLength = planeSize.z / chunksPerSide;
-
-        float chunkSize = Mathf.Max(chunkWidth, chunkLength);
-
-        Vector3 planeMin = planeBounds.min;
+        float chunkWidth = terrainSize.x / chunksPerSide;
+        float chunkLength = terrainSize.z / chunksPerSide;
 
         for (int i = 0; i < chunkCount; i++)
         {
             int xIndex = i % chunksPerSide;
             int zIndex = i / chunksPerSide;
 
-            float centerX = planeMin.x + (xIndex * chunkSize) + (chunkSize / 2f);
-            float centerZ = planeMin.z + (zIndex * chunkSize) + (chunkSize / 2f);
+            float centerX = Mathf.Lerp(terrainMinX, terrainMaxX, (xIndex + 0.5f) / chunksPerSide);
+            float centerZ = Mathf.Lerp(terrainMinZ, terrainMaxZ, (zIndex + 0.5f) / chunksPerSide);
 
             float height = GetHeightFromHeightmap(plane, new Vector2(centerX, centerZ));
 
@@ -63,14 +55,14 @@ public class ChunkController : IDisposable
                 grassAmount = (uint)grassData.resolution,
                 isVisible = 0,
                 minBounds = new Vector3(
-                    centerX - chunkSize / 2f,
-                    height - 10f, // Небольшой отступ вниз для рельефа
-                    centerZ - chunkSize / 2f
+                    centerX - chunkWidth / 2f,
+                    height - 10f,
+                    centerZ - chunkLength / 2f
                 ),
                 maxBounds = new Vector3(
-                    centerX + chunkSize / 2f,
-                    height + 10f, // Небольшой отступ вверх для рельефа
-                    centerZ + chunkSize / 2f
+                    centerX + chunkWidth / 2f,
+                    height + 10f,
+                    centerZ + chunkLength / 2f
                 )
             };
         }
@@ -107,21 +99,17 @@ public class ChunkController : IDisposable
     {
         mainCamera ??= Camera.main;
 
-        // Получаем плоскости пирамиды видимости камеры
         GeometryUtility.CalculateFrustumPlanes(mainCamera, cameraFrustumPlanes);
 
         visibleChunks.Clear();
 
         for (int i = 0; i < chunkBuffers.Length; i++)
         {
-            // Создаем bounds для чанка
             Bounds chunkBounds = new();
             chunkBounds.SetMinMax(chunkBuffers[i].minBounds, chunkBuffers[i].maxBounds);
 
-            // Проверяем видимость с помощью плоскостей пирамиды видимости
             chunkBuffers[i].isVisible = CheckChunkVisibility(chunkBounds);
 
-            // Дополнительная проверка расстояния
             float distanceToCamera = Vector3.Distance((chunkBuffers[i].minBounds + chunkBuffers[i].maxBounds) / 2f, mainCamera.transform.position);
             bool isInRenderDistance = distanceToCamera < grassData._DistanceCullEndDist;
 
@@ -207,26 +195,20 @@ public class ChunkController : IDisposable
 
         for (int i = 0; i < chunkBuffers.Length; i++)
         {
-            // Выбор цвета
             Color chunkColor = chunkBuffers[i].isVisible == 2 ? Color.green :
                                chunkBuffers[i].isVisible == 1 ? Color.magenta :
                                Color.gray;
 
-            // Расчет центра и размера
             Vector3 size = chunkBuffers[i].maxBounds - chunkBuffers[i].minBounds;
             Vector3 center = (chunkBuffers[i].minBounds + chunkBuffers[i].maxBounds) / 2f;
 
-            // Установка цветов для Gizmos и Handles
             Gizmos.color = chunkColor;
             UnityEditor.Handles.color = chunkColor;
 
-            // Отрисовка куба
             Gizmos.DrawWireCube(center, size);
 
-            // Линия между минимальной и максимальной точками
             Gizmos.DrawLine(chunkBuffers[i].minBounds, chunkBuffers[i].maxBounds);
 
-            // Текстовая метка с информацией о чанке
             UnityEditor.Handles.Label(
                 (chunkBuffers[i].minBounds + chunkBuffers[i].maxBounds) / 2f,
                 $"Chunk {chunkBuffers[i].chunkId}\n" +
