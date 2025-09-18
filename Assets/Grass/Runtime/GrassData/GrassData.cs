@@ -5,6 +5,9 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "GrassData", menuName = "Grass/GrassData")]
 public class GrassData : ScriptableObject
 {
+    public TerrainLayer[] IncludeLayers;
+
+
     [Header("Linked objects")]
     public ComputeShader computeShader;
     public GrassMesh grassMesh;
@@ -15,6 +18,7 @@ public class GrassData : ScriptableObject
     public float jitterStrength = 5;
 
     [Header("Wind")]
+    public bool enableWindDisabled = true;
     public Texture WindTex;
     public float _GlobalWindFacingContribution = 0;
     public float _GlobalWindFacingAngle = 0;
@@ -37,6 +41,7 @@ public class GrassData : ScriptableObject
     public float _FrustumCullEdgeOffset = -2;
 
     [Header("Clumping")]
+    public bool enableClumpDisabled = true;
     public int clumpTexHeight = 512;
     public int clumpTexWidth = 512;
     public Material clumpingVoronoiMat;
@@ -52,10 +57,10 @@ public class GrassData : ScriptableObject
     public float _ClumpColorUniformity = .5f;
     public Vector2Int gradientMapDimensions = new(128, 32);
 
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
     public bool testing = false;
     public Gradient gradientClump;
-    #endif
+#endif
 
     public Texture2D texture;
 }

@@ -70,6 +70,8 @@ public class GrassComputeManager : IDisposable
 
         InitializeBasicData(grassData, chunkController);
 
+        grassData.computeShader.SetFloat("_GrassPlatformOffsetY", plane.transform.position.y);
+
         CreateBuffers(plane);
         SetComputeShaderParameters();
         SetClumpParameters();
@@ -103,7 +105,6 @@ public class GrassComputeManager : IDisposable
         grassData.computeShader.SetFloat(ClumpScaleID, grassData.ClumpScale);
 
         grassData.grassMesh.material.SetFloat(WindControlID, grassData._WindControl);
-
     }
 
     private void CreateBuffers(GameObject plane)
@@ -117,7 +118,9 @@ public class GrassComputeManager : IDisposable
 
         Height(plane);
         Keyword();
-        Voronoi();
+        if(grassData.enableClumpDisabled)
+            Voronoi();
+
         ClonedMesh();
         SetBufferMesh();
 
@@ -135,18 +138,16 @@ public class GrassComputeManager : IDisposable
         computeShader.SetTexture(0, heightMapId, heightMap);
         computeShader.SetBuffer(0, grassBladesBufferID, grassBladesBuffer);
 
-        // Параметры высоты
         computeShader.SetFloat("_HeightMapScale", _HeightMapScale);
         computeShader.SetFloat("_HeightMapMultiplier", _HeightMapMultiplier);
 
-        // Текстуры
-        computeShader.SetTexture(0, windTexID, grassData.WindTex);
+        if(grassData.enableWindDisabled)
+            computeShader.SetTexture(0, windTexID, grassData.WindTex);
         computeShader.SetTexture(0, ClumpGradientMapId, grassData.texture);
     }
 
     private void SetClumpParameters()
     {
-        // Работа с параметрами скоплений травы
         clumpParametersBuffer = new ComputeBuffer(
             grassData.clumpParameters.Count,
             sizeof(float) * 10
@@ -184,28 +185,46 @@ public class GrassComputeManager : IDisposable
 
     private void ClonedMesh()
     {
+        Mesh originalMesh = grassData.grassMesh.originalMesh;
+
         clonedMesh = new Mesh
         {
-            name = "clone",
-            vertices = grassData.grassMesh.originalMesh.vertices,
-            triangles = grassData.grassMesh.originalMesh.triangles,
-            normals = grassData.grassMesh.originalMesh.normals,
-            uv = grassData.grassMesh.originalMesh.uv
+            name = "ClonedGrassMesh",
+            vertices = originalMesh.vertices,
+            triangles = originalMesh.triangles,
+            normals = originalMesh.normals,
+            uv = originalMesh.uv
         };
 
-        Color[] newColors = new Color[grassData.grassMesh.originalMesh.colors.Length];
+        Color[] newColors = originalMesh.colors.Length > 0
+        ? originalMesh.colors
+        : GenerateFallbackColors(originalMesh.vertices.Length);
 
-        for (int i = 0; i < grassData.grassMesh.originalMesh.colors.Length; i++)
+        for (int i = 0; i < newColors.Length; i++)
         {
-            Color col = grassData.grassMesh.originalMesh.colors[i];
-            float r = Mathf.Pow(col.r, grassData._VertexPlacementPower);
+            Color col = newColors[i];
 
-            col.r = r;
+            col.r = Mathf.Pow(col.r, grassData._VertexPlacementPower);
 
             newColors[i] = col;
         }
 
         clonedMesh.colors = newColors;
+    }
+
+    private Color[] GenerateFallbackColors(int vertexCount)
+    {
+        Color[] colors = new Color[vertexCount];
+        for (int i = 0; i < vertexCount; i++)
+        {
+            colors[i] = new Color(
+                UnityEngine.Random.Range(0.5f, 1f),
+                UnityEngine.Random.value > 0.5f ? 1f : 0f,
+                0,
+                1
+            );
+        }
+        return colors;
     }
 
     private void Keyword()
@@ -219,18 +238,29 @@ public class GrassComputeManager : IDisposable
             grassData.grassMesh.material.EnableKeyword("USE_CLUMP_COLORS");
         else
             grassData.grassMesh.material.DisableKeyword("USE_CLUMP_COLORS");
+
+        if (grassData.enableClumpDisabled)
+            grassData.computeShader.EnableKeyword("CLUMP_DISABLED");
+        else
+            grassData.computeShader.DisableKeyword("CLUMP_DISABLED");
+            
+        if (grassData.enableWindDisabled)
+            grassData.computeShader.EnableKeyword("WIND_DISABLED");
+        else
+            grassData.computeShader.DisableKeyword("WIND_DISABLED");
     }
 
     private void Height(GameObject plane)
     {
-        Material objectRenderer;
-        objectRenderer = plane.GetComponent<Renderer>().material;
+        Terrain terrain = plane.GetComponent<Terrain>();
+        heightMap = terrain.terrainData.heightmapTexture;
+        _HeightMapScale = terrain.terrainData.size.x;
 
-        heightMap = objectRenderer.GetTexture("_Heightmap");
-        Vector2 heightmapTiling = objectRenderer.GetTextureScale("_Heightmap");
+        grassData.computeShader.SetFloat("_TwiceTerrainHeight", terrain.terrainData.size.y * 2f);
+        grassData.computeShader.SetFloat("_TerrainSize", terrain.terrainData.size.x);
+        grassData.computeShader.SetVector("_terrainCenter", terrain.transform.position);
 
-        _HeightMapScale = heightmapTiling.x;
-        _HeightMapMultiplier = objectRenderer.GetFloat("_HeightMul");
+        _HeightMapMultiplier = terrain.terrainData.size.y;
     }
 
     private void Voronoi()
@@ -266,9 +296,7 @@ public class GrassComputeManager : IDisposable
         clumpParametersArray = new ClumpParametersStruct[grassData.clumpParameters.Count];
 
         for (int i = 0; i < grassData.clumpParameters.Count; i++)
-        {
             clumpParametersArray[i] = grassData.clumpParameters[i];
-        }
 
         clumpParametersBuffer.SetData(clumpParametersArray);
         grassData.computeShader.SetBuffer(0, clumpParametersId, clumpParametersBuffer);
@@ -290,7 +318,7 @@ public class GrassComputeManager : IDisposable
             int chunkGroupsX = Mathf.Max(1, Mathf.CeilToInt(chunkController.visibleChunks.Count / 8f));
             int grassGroupsY = Mathf.Max(1, Mathf.CeilToInt(grassData.resolution / 8f));
 
-            grassData.computeShader.Dispatch(0, chunkGroupsX, grassGroupsY, grassGroupsY);//обработка Main
+            grassData.computeShader.Dispatch(0, chunkGroupsX, grassGroupsY, grassGroupsY);//start Main in comput shader
         }
 
         ComputeBuffer.CopyCount(grassBladesBuffer, argsBuffer, sizeof(int));

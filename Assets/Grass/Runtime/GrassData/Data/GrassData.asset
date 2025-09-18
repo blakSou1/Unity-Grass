@@ -12,10 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 838216565a47c14418740d707d7d9872, type: 3}
   m_Name: GrassData
   m_EditorClassIdentifier: 
+  IncludeLayers:
+  - {fileID: 8574412962073106934, guid: fa0b3d2527f53e14ea03ad9a8b6eb6ee, type: 2}
   computeShader: {fileID: 7200000, guid: e5d8eae77f4353e4ea73f713d6da57bc, type: 3}
   grassMesh: {fileID: 11400000, guid: a68c992e30c790b4c8b0714d4b3bdcc8, type: 2}
-  resolution: 600
+  resolution: 500
   jitterStrength: 5
+  enableWindDisabled: 1
   WindTex: {fileID: 2800000, guid: 20d78fde43f8f624ca3c54d38d11014a, type: 3}
   _GlobalWindFacingContribution: 0
   _GlobalWindFacingAngle: 0
@@ -31,6 +34,7 @@ MonoBehaviour:
   DISTANCE_CULL_ENABLED: 1
   _FrustumCullNearOffset: -5
   _FrustumCullEdgeOffset: -2
+  enableClumpDisabled: 1
   clumpTexHeight: 512
   clumpTexWidth: 512
   clumpingVoronoiMat: {fileID: 2100000, guid: 427f3176a375e484f86f3b548da71ba3, type: 2}
