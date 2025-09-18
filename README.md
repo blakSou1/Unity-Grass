@@ -5,6 +5,8 @@ Essentially an implementation of the approach used in Ghost of Tsushima, detaile
 
 The grass is quite performant (although there are crucial optimisations that should be added, like LODing). The look and movement of the grass is highly customisable and can be changed using various parameters.
 
+![alt text](https://github.com/blakSou1/Unity-Grass/blob/main/ReadmeDataMedia/photo_2025-09-18_22-27-54.jpg?raw=true)
+
 # Key Features:
 - **Shape of blades** determined by cubic Bezier curves
 - **Wind animation** driven by scrolling 2D perlin noise inputted to a sin-based function that modulates various parameters of the grass
