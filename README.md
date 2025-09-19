@@ -32,6 +32,8 @@ https://github.com/user-attachments/assets/b5731855-1400-4dbc-8668-bc157d50b608
 - Occlusion culling
 - Spend verts for single blade on multiple blades when grass is short (Tsushima does this)
 
+https://github.com/user-attachments/assets/c8a54dfd-60e2-4c74-be4d-979a40ab2769
+
 # Bugs
 - if there is a large amount of grass on the screen, the buffer will overflow and some of the grass will be excluded from the render.
 - Terrain Width and Terrain Height must be identical. The height map is not stretched correctly and only works with a square.
